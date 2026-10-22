@@ -19,10 +19,13 @@ import java.time.LocalDateTime;
 @Service
 public class FailedTransactionService {
     private final TransactionEntityRepository transactionEntityRepository;
+    private final TransactionCacheUpdater transactionCacheUpdater;
 
     @Autowired
-    public FailedTransactionService(TransactionEntityRepository transactionEntityRepository) {
+    public FailedTransactionService(TransactionEntityRepository transactionEntityRepository,
+                                    TransactionCacheUpdater transactionCacheUpdater) {
         this.transactionEntityRepository = transactionEntityRepository;
+        this.transactionCacheUpdater = transactionCacheUpdater;
     }
 
 
@@ -38,8 +41,7 @@ public class FailedTransactionService {
         transaction.setFailureReason(response.message());
         transaction.setCompletedAt(LocalDateTime.now());
         transactionEntityRepository.save(transaction);
-        System.out.println(transaction.getSnapshot().getDestinationAccountHolderName());
-
+        transactionCacheUpdater.updateAfterCommit(transaction);
         TransferMoneyResponse moneyResponse=new TransferMoneyResponse(
                 transaction.getTransactionId(),
                 new AccountTransactionParty(
@@ -55,6 +57,7 @@ public class FailedTransactionService {
                 transaction.getFailureReason(),
                 transaction.getCompletedAt());
         TransferErrorCode code=response.errorCode();
+
         switch (code) {
 
             case INSUFFICIENT_BALANCE ->

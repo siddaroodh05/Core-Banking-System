@@ -28,7 +28,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class TransactionService {
@@ -37,18 +37,21 @@ public class TransactionService {
     private final PendingTransactionService pendingTransactionService;
     private final FailedTransactionService failedTransactionService;
     private final SuccessTransactionService successTransactionService;
+    private final IdempotencyService idempotencyService;
 
 
     public TransactionService(TransactionEntityRepository transactionEntityRepository,
                               AccountClient accountClient,
                               PendingTransactionService pendingTransactionService,
                               FailedTransactionService failedTransactionService,
-                              SuccessTransactionService successTransactionService) {
+                              SuccessTransactionService successTransactionService,
+                              IdempotencyService idempotencyService) {
         this.transactionEntityRepository = transactionEntityRepository;
         this.accountClient = accountClient;
         this.pendingTransactionService = pendingTransactionService;
         this.failedTransactionService = failedTransactionService;
         this.successTransactionService = successTransactionService;
+        this.idempotencyService = idempotencyService;
 
     }
 
@@ -56,24 +59,18 @@ public class TransactionService {
 
     public TransferMoneyResponse transferMoney(TransferMoneyRequest request) {
 
-        Optional<TransactionEntity> ExistTransaction = transactionEntityRepository.findByIdempotencyKey(request.idempotencyKey());
-        if(ExistTransaction.isPresent()) {
-            TransactionEntity transaction = ExistTransaction.get();
-            return new TransferMoneyResponse(
-                    transaction.getTransactionId(),
-                    new AccountTransactionParty(
-                            transaction.getSnapshot().getSourceAccountHolderName(),
-                            transaction.getSourceAccountNumber()
-                    ),
-                    new AccountTransactionParty(
-                            transaction.getSnapshot().getDestinationAccountHolderName(),
-                            transaction.getDestinationAccountNumber()
-                    ),
-                    transaction.getAmount(),
-                    transaction.getStatus(),
-                    transaction.getFailureReason(),
-                    transaction.getCompletedAt()
-            );
+        TransferMoneyResponse existTransaction =idempotencyService.findByIdempotencyKey(request.idempotencyKey());
+
+        if (existTransaction != null) {
+
+            if (!request.senderAccountNumber().equals(
+                    existTransaction.debitedFrom().accountNumber())) {
+                throw new AccessForbiddenException(
+                        new AccessForbiddenResponse(
+                                "You are not authorized to access this transaction"));
+            }
+
+            return existTransaction;
         }
 
         TransactionValidationResponse validationResponse=accountClient.transactionValidation(
@@ -86,9 +83,10 @@ public class TransactionService {
         TransactionEntity transaction;
         try {
             transaction = pendingTransactionService.savePendingTransaction(request, validationResponse);
+            idempotencyService.cacheTransactionResponse(transaction.getIdempotencyKey(),transaction);
         }
         catch (DataIntegrityViolationException e) {
-            return pendingTransactionService.fetchExistingTransaction(request.senderAccountNumber(),request.idempotencyKey());
+            return fetchExistingTransaction(request.senderAccountNumber(),request.idempotencyKey());
         }
 
         AccountTransferResponse response;
@@ -128,10 +126,28 @@ public class TransactionService {
 
         if(response.status() == TransferStatus.FAILED){
             failedTransactionService.handleFailedTransaction(response,transaction);
+            idempotencyService.cacheTransactionResponse(transaction.getIdempotencyKey(),transaction);
         }
 
-        return successTransactionService.saveSuccessTransaction(transaction);
+        TransferMoneyResponse Successresponse= successTransactionService.saveSuccessTransaction(transaction);
+        idempotencyService.cacheTransactionResponse(transaction.getIdempotencyKey(),transaction);
+        return  Successresponse;
 
+    }
+
+    public TransferMoneyResponse fetchExistingTransaction(
+            String senderAccountNumber,
+            UUID idempotencyKey) {
+
+        TransferMoneyResponse response = idempotencyService.findByIdempotencyKey(idempotencyKey);
+
+        if (!response.debitedFrom().accountNumber().equals(senderAccountNumber)) {
+            throw new AccessForbiddenException(
+                    new AccessForbiddenResponse(
+                            "you are not authorized to access transaction"));
+        }
+
+        return response;
     }
 
     private TransferMoneyResponse pendingResponse(TransactionEntity transaction) {

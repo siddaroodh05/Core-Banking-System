@@ -17,6 +17,8 @@ import com.siddu.transactionservices.Exceptions.*;
 import com.siddu.transactionservices.Repository.TransactionEntityRepository;
 import com.siddu.transactionservices.Utils.TransactionIdGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,12 +28,14 @@ import java.util.UUID;
 @Service
 public class PendingTransactionService {
     private final TransactionEntityRepository transactionEntityRepository;
+    private final IdempotencyService idempotencyService;
 
     @Autowired
-    public PendingTransactionService(TransactionEntityRepository transactionEntityRepository) {
-
+    public PendingTransactionService(TransactionEntityRepository transactionEntityRepository,
+                                     IdempotencyService idempotencyService
+                                     ) {
         this.transactionEntityRepository = transactionEntityRepository;
-
+        this.idempotencyService = idempotencyService;
 
     }
 
@@ -61,37 +65,10 @@ public class PendingTransactionService {
 
             snapshot.setTransaction(pendingTransaction);
             pendingTransaction.setSnapshot(snapshot);
-            return  transactionEntityRepository.save(pendingTransaction);
+            TransactionEntity response=  transactionEntityRepository.save(pendingTransaction);
+            return response;
 
         }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public TransferMoneyResponse fetchExistingTransaction(String senderAccountNumber, UUID idempotencyKey) {
-        TransactionEntity existing = transactionEntityRepository.findByIdempotencyKey(idempotencyKey)
-                .orElseThrow();
-
-        boolean isOwner = existing.getSourceAccountNumber().equals(senderAccountNumber);
-        if (!isOwner) {
-            throw new AccessForbiddenException(new AccessForbiddenResponse("you are not authorized to access transaction"));
-        }
-
-        return new TransferMoneyResponse(
-                existing.getTransactionId(),
-                new AccountTransactionParty(
-                        existing.getSnapshot().getSourceAccountHolderName(),
-                        existing.getSourceAccountNumber()
-                ),
-                new AccountTransactionParty(
-                        existing.getSnapshot().getDestinationAccountHolderName(),
-                        existing.getDestinationAccountNumber()
-                ),
-                existing.getAmount(),
-                existing.getStatus(),
-                existing.getFailureReason(),
-                existing.getCreatedAt()
-        );
-    }
-
 
         private  void handlestatusResponse(TransactionValidationResponse validationResponse){
             TXNFailedResponse response=new TXNFailedResponse(ValidationStatus.Failed,validationResponse.message());
