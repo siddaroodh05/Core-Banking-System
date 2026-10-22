@@ -48,7 +48,8 @@ public class AuthService {
 
     }
 
-    public AuthResult registerUser(RegisterRequest registerRequest,String deviceInfo,String ipAddress) {
+    @Transactional
+    public SuccessResponse registerUser(RegisterRequest registerRequest) {
          if(userRepository.existsByEmail(registerRequest.getEmail())) {
              throw new EmailAlreadyExistsException("Email already exists");
          }
@@ -56,7 +57,7 @@ public class AuthService {
         UserEntity user = UserEntity.builder()
                 .email(registerRequest.getEmail())
                 .passwordHash(passwordEncoder.encode(registerRequest.getPassword()))
-                .isEmailVerified(true)
+                .isEmailVerified(false)
                 .status(UserStatus.ACTIVE)
                 .build();
 
@@ -75,23 +76,8 @@ public class AuthService {
                 .stream()
                 .map(ur -> ur.getRole().getName().name())
                 .toList();
-        String  accessToken=jwtService.generateAccessToken(user.getId(),user.getEmail(),roles);
 
-        String refreshToken =jwtService.generateRefreshToken(user.getId());
-        String Hashed_refreshToken= TokenHashUtil.hash(refreshToken);
-
-        SessionEntity session = SessionEntity.builder()
-                .user(user)
-                .refreshTokenHash(Hashed_refreshToken)   // NEVER store raw token
-                .deviceInfo(deviceInfo)
-                .ipAddress(ipAddress)
-                .isActive(true)
-                .expiresAt(Instant.now().plusSeconds(7 * 24 * 60 * 60))
-                .build();
-
-        sessionRepository.save(session);
-
-        return new AuthResult(new UserResponse(user.getEmail(),roles),accessToken,refreshToken);
+        return new SuccessResponse("please verify your email through otp before completing registration");
 
     }
 
@@ -101,6 +87,11 @@ public class AuthService {
 
         if(!passwordEncoder.matches(loginRequest.getPassword(),user.getPasswordHash())) {
             throw new InvalidCreditionalException("invalid credentials");
+        }
+        if (!user.isEmailVerified()) {
+            throw new EmailNotVerifiedException(
+                    "Please verify your email before logging in"
+            );
         }
 
         sessionRepository.deactivateAllByUser(user.getId());
@@ -126,7 +117,7 @@ public class AuthService {
         sessionRepository.save(session);
 
 
-        return new AuthResult(new UserResponse(user.getEmail(),roles),accessToken,refreshToken);
+        return new AuthResult(new UserResponse(user.getEmail(),roles,user.isEmailVerified()),accessToken,refreshToken);
 
     }
 

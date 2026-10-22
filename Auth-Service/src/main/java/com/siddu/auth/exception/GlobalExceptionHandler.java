@@ -81,11 +81,15 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-
-
-
-
-
-
-
+    @ExceptionHandler(ResourceNotMatchedException.class)
+    public ResponseEntity<ApierrorResponse> handleResourceNotMatched(
+            ResourceNotMatchedException ex
+    ){
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new
+                ApierrorResponse(HttpStatus.BAD_REQUEST.name(),ex.getMessage()));
+    }
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ApierrorResponse> handleEmailAlreadyExistsException(EmailAlreadyExistsException e){
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApierrorResponse("EMAIL_NOT_VERIFIED",e.getMessage()));
+    }
 }

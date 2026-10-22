@@ -8,5 +8,6 @@ import java.util.List;
 public class UserResponse {
     private String email;
     private List<String> roles;
+    private boolean isEmailVerified;
 
 }

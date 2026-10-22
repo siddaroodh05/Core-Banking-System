@@ -21,7 +21,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
     @EnableMethodSecurity(prePostEnabled = true)
     @RequiredArgsConstructor
     public class SecurityConfig {
-        private final JwtAuthenticationFilter jwtAuthenticationFilter;
         private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
         private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
         private final GatewayAuthenticationFilter gatewayAuthenticationFilter;
@@ -47,7 +46,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
                                     "/Auth/login",
                                     "/Auth/refresh",
                                     "/Auth/logout",
-                                    "/internal/**"
+                                    "/internal/**",
+                                    "/Auth/send-otp",
+                                    "/Auth/verify-otp"
                             ).permitAll()
                             .requestMatchers("/error").permitAll()
                             .requestMatchers("/admin/**").hasAnyRole("ADMIN","MANAGER")
