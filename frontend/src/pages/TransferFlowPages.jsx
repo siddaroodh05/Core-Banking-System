@@ -25,6 +25,22 @@ function readResult(key) {
   } catch { return null; }
 }
 
+function failedTransferResponse(error) {
+  const body = error?.responseBody;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  const candidate = [body.data, body.transaction, body.result, body]
+    .find((value) => value && typeof value === 'object' && !Array.isArray(value)
+      && (value.transactionId || value.amount !== undefined || value.debitedFrom || value.creditedTo
+        || value.sender || value.receiver
+        || ['FAILED', 'FAILURE', 'DECLINED', 'REJECTED'].includes(String(value.status || value.transactionStatus || '').toUpperCase())));
+  if (!candidate) return null;
+  return {
+    ...candidate,
+    status: candidate.status || candidate.transactionStatus || 'FAILED',
+    failureReason: candidate.failureReason || candidate.reason || candidate.errorMessage || error.message,
+  };
+}
+
 export function TransferDetailsPage() {
   const { accounts, active } = useBank();
   const savedDraft = readDraft();
@@ -222,8 +238,20 @@ export function TransferStatusPage({ idempotencyKey }) {
         setTransaction(completedAttempt.result);
         setPhase('complete');
       } else {
-        setError(completedAttempt.error?.message || 'We could not reach the bank. Retry safely using the same payment reference.');
-        setPhase('error');
+        const failedResponse = failedTransferResponse(completedAttempt.error);
+        if (failedResponse) {
+          try {
+            sessionStorage.setItem(resultKey(idempotencyKey), JSON.stringify(failedResponse));
+            sessionStorage.removeItem(DRAFT_KEY);
+          } catch {
+            setError('Payment failed, but the result could not be saved for refresh.');
+          }
+          setTransaction(failedResponse);
+          setPhase('complete');
+        } else {
+          setError(completedAttempt.error?.message || 'We could not reach the bank. Retry safely using the same payment reference.');
+          setPhase('error');
+        }
       }
     };
     waitForAttempt();

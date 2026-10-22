@@ -32,7 +32,7 @@ export function AuthProvider({ children }) {
     isStaff: !!user && user.roles.some((r) => r === 'ADMIN' || r === 'MANAGER'),
     isAdmin: !!user && user.roles.includes('ADMIN'),
     signIn: async (email, password) => accept(await authApi.login(email, password)),
-    signUp: async (email, password) => accept(await authApi.register(email, password)),
+    signUp: async (email, password) => authApi.register(email, password),
     signOut: async () => { try { await authApi.logout(); } finally { clear(); } },
   }), [user, clear]);
 

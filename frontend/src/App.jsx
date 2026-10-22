@@ -5,7 +5,7 @@ import { ToastProvider } from './context/ToastContext';
 import { navigate, useRoute } from './router';
 import { AppLayout } from './components/Layout';
 import { Alert, Skeleton } from './components/ui';
-import { LoginPage, RegisterPage } from './pages/AuthPages';
+import { LoginPage, RegisterPage, SignupOtpPage } from './pages/AuthPages';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { TransferDetailsPage, TransferPinPage, TransferStatusPage } from './pages/TransferFlowPages';
@@ -68,8 +68,13 @@ function Authed() {
 function Gate() {
   const { user } = useAuth();
   const path = useRoute();
-  useEffect(() => { if (!user && path !== '/login' && path !== '/register') navigate('/login'); }, [user, path]);
-  if (!user) return path === '/register' ? <RegisterPage /> : <LoginPage />;
+  const email = new URLSearchParams(window.location.hash.split('?')[1] || '').get('email') || '';
+  useEffect(() => { if (!user && path !== '/login' && path !== '/register' && path !== '/verify-otp') navigate('/login'); }, [user, path]);
+  if (!user) {
+    if (path === '/register') return <RegisterPage />;
+    if (path === '/verify-otp') return <SignupOtpPage email={email} />;
+    return <LoginPage />;
+  }
   return <BankProvider><Authed /></BankProvider>;
 }
 

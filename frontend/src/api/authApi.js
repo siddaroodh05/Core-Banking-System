@@ -2,6 +2,8 @@ import { request } from './client';
 
 export const login = (email, password) => request('/Auth/login', { method: 'POST', body: { email, password } });
 export const register = (email, password) => request('/Auth/register', { method: 'POST', body: { email, password } });
+export const sendSignupOtp = (email) => request('/Auth/send-otp', { method: 'POST', body: { email } });
+export const verifySignupOtp = (email, otp) => request('/Auth/verify-otp', { method: 'POST', body: { email, otp } });
 export const logout = () => request('/Auth/logout', { method: 'POST' });
 
 /* Admin / manager */

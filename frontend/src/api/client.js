@@ -2,9 +2,11 @@ const ENV = import.meta.env || {};
 const BASE = (ENV.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
 
 export class ApiError extends Error {
-  constructor(status, message, code) {
+  constructor(status, message, code, responseBody) {
     super(message);
     this.status = status;
+    this.code = code;
+    this.responseBody = responseBody;
   }
 }
 
@@ -23,7 +25,14 @@ function toQuery(query) {
 function readMessage(body, fallback) {
   if (!body) return fallback;
   if (typeof body === 'string') return body;
-  return body.message || body.data?.message || body.error || fallback;
+  return body.message
+    || body.failureReason
+    || body.reason
+    || body.errorMessage
+    || body.data?.message
+    || body.data?.failureReason
+    || body.error
+    || fallback;
 }
 
 async function send(path, { method = 'GET', body, query } = {}) {
@@ -62,6 +71,6 @@ export async function request(path, opts = {}) {
     }
   }
   if (res.status === 429) throw new ApiError(429, 'Too many requests. Wait a moment and try again.');
-  if (!res.ok) throw new ApiError(res.status, readMessage(data, 'Something went wrong. Try again.'), data?.error);
+  if (!res.ok) throw new ApiError(res.status, readMessage(data, 'Something went wrong. Try again.'), data?.error, data);
   return data;
 }

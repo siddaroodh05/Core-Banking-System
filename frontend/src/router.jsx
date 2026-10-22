@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
-/* Tiny hash router so the app has zero routing dependencies.
-   Swap for react-router-dom later: only useRoute, navigate and Link are used. */
+
 const read = () => (window.location.hash.replace(/^#/, '') || '/').split('?')[0];
 
 export function useRoute() {
