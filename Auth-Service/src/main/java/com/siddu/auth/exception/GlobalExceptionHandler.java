@@ -89,7 +89,7 @@ public class GlobalExceptionHandler {
                 ApierrorResponse(HttpStatus.BAD_REQUEST.name(),ex.getMessage()));
     }
     @ExceptionHandler(EmailNotVerifiedException.class)
-    public ResponseEntity<ApierrorResponse> handleEmailAlreadyExistsException(EmailAlreadyExistsException e){
+    public ResponseEntity<ApierrorResponse> handleEmailAlreadyExistsException(EmailNotVerifiedException e){
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApierrorResponse("EMAIL_NOT_VERIFIED",e.getMessage()));
     }
 }
