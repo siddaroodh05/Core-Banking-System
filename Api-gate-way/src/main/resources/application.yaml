@@ -25,7 +25,7 @@ spring:
             - id : auth-public
               uri: http://auth-service:8081
               predicates:
-                - Path=/Auth/login,/Auth/register,/Auth/refresh,/Auth/logout
+                - Path=/Auth/login,/Auth/register,/Auth/refresh,/Auth/logout,Auth/send-otp,/Auth/verify-otp
 
             - id : auth-admin
               uri: http://auth-service:8081
@@ -46,5 +46,3 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET_KEY}
-  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION}
-  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION}

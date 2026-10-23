@@ -20,6 +20,7 @@
     <properties>
         <java.version>17</java.version>
         <spring-cloud.version>2025.0.0</spring-cloud.version>
+        <byte-buddy.version>1.17.7</byte-buddy.version>
     </properties>
     <dependencyManagement>
         <dependencies>

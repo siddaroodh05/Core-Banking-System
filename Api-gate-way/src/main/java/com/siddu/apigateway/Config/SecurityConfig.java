@@ -107,7 +107,9 @@ public class SecurityConfig {
                                 "/Auth/login",
                                 "/Auth/refresh",
                                 "/Auth/logout",
-                                "/internal/**"
+                                "/internal/**",
+                                "/Auth/send-otp",
+                                "/Auth/verify-otp"
                         ).permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/admin/auth/**").hasAnyRole("ADMIN","MANAGER")
