@@ -22,6 +22,7 @@ import com.siddu.transactionservices.Repository.TransactionHistoryRow;
 import com.siddu.transactionservices.Utils.SecurityUtils;
 import feign.FeignException;
 import feign.RetryableException;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -38,6 +39,7 @@ public class TransactionService {
     private final FailedTransactionService failedTransactionService;
     private final SuccessTransactionService successTransactionService;
     private final IdempotencyService idempotencyService;
+    private final CacheService cacheService;
 
 
     public TransactionService(TransactionEntityRepository transactionEntityRepository,
@@ -45,13 +47,15 @@ public class TransactionService {
                               PendingTransactionService pendingTransactionService,
                               FailedTransactionService failedTransactionService,
                               SuccessTransactionService successTransactionService,
-                              IdempotencyService idempotencyService) {
+                              IdempotencyService idempotencyService,
+                              CacheService cacheService) {
         this.transactionEntityRepository = transactionEntityRepository;
         this.accountClient = accountClient;
         this.pendingTransactionService = pendingTransactionService;
         this.failedTransactionService = failedTransactionService;
         this.successTransactionService = successTransactionService;
         this.idempotencyService = idempotencyService;
+        this.cacheService = cacheService;
 
     }
 
@@ -73,7 +77,7 @@ public class TransactionService {
             return existTransaction;
         }
 
-        TransactionValidationResponse validationResponse=accountClient.transactionValidation(
+        TransactionValidationResponse validationResponse =cacheService.validateTransaction(
                 new TransactionValidationRequest(
                         SecurityUtils.getCurrentUserId(),
                         request.senderAccountNumber(),
@@ -167,13 +171,11 @@ public class TransactionService {
     }
 
 
-
     public Page<TransferMoneyResponse> getTransactionshistory(int page, int size, AccountNumberRequest request){
 
-        AccountIdentifierResponse Ownership=accountClient.checkOwnership(new AccountIdentifier(
+        AccountIdentifierResponse Ownership=cacheService.checkOwnership(new AccountIdentifier(
                 SecurityUtils.getCurrentUserId(),
                 request.accountNumber()));
-
 
         if(Ownership.owner().equals(CheckOwnerShip.INVALID_OWNER)){
             throw new AccessForbiddenException(new AccessForbiddenResponse("you are not authorized to access this account"));
