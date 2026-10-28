@@ -304,6 +304,34 @@ Each service connects to its corresponding database.
 
 This keeps authentication, account, and transaction data separated at the service level.
 
+### Schema Diagrams
+
+The entity-relationship diagrams for each database are stored in [`database-Schemas/`](database-Schemas).
+
+#### Authentication (`auth_db`)
+
+![Authentication schema](database-Schemas/authentication_schema.png)
+
+* `users` holds the login identity: unique email, password hash, email-verified flag, and a status (`ACTIVE`, `DEACTIVATED`, `DELETED`).
+* `roles` and the `user_roles` join table give each user one or more roles (`USER`, `ADMIN`, `SUPPORT`).
+* `Sessions` stores one row per login session: a hashed refresh token, device and IP details, an active flag, and an expiry time. This is what backs refresh-token handling on the server side.
+
+#### Accounts (`account_db`)
+
+![Account schema](database-Schemas/Account_schema.png)
+
+* `Account_profile` holds the customer's KYC details (name, Aadhaar, phone, address, date of birth, KYC status).
+* `Accounts` belongs to a profile and a branch, and carries the unique account number, account type (`SAVINGS`, `CURRENT`), status, currency (default `INR`), balance, and transaction PIN.
+* `Branches` stores branch name, IFSC code, address and status.
+* `account_ledger` records each debit or credit against an account, with the amount and the balance after the entry.
+
+#### Transactions (`transaction_db`)
+
+![Transaction schema](database-Schemas/Transaction_schema.png)
+
+* `Transactions` is the central record: a unique idempotency key and transaction reference, the two account numbers, amount, currency, type (`TRANSFER`, `DEPOSIT`, `WITHDRAWAL`), status (`PENDING`, `SUCCESS`, `FAILED`), failure reason, and created, updated and completed timestamps.
+* `Transaction_Snapshot` has a one-to-one link to a transaction and keeps a copy of the sender and receiver account numbers and holder names.
+
 ## Docker
 
 The repository contains Dockerfiles for the backend services and a root `docker-compose.yaml` for running the system as a multi-container setup.
@@ -466,4 +494,4 @@ The main areas explored through the implementation include:
 
 ## Repository
 
-[Core Banking System](https://github.com/digital-banking-platform/Core-Banking-System)
+[Core Banking System](https://github.com/siddaroodh05/Core-Banking-System)
